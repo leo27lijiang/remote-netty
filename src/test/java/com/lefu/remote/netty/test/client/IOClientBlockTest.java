@@ -1,7 +1,6 @@
 package com.lefu.remote.netty.test.client;
 
 import java.nio.ByteBuffer;
-import java.util.List;
 
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
@@ -52,7 +51,7 @@ public class IOClientBlockTest extends TestCase {
 		if (value.get() == null) {
 			throw new NullPointerException();
 		}
-		List<Object> result = value.get().read();
+		Object result = value.get().read();
 		System.out.println(result);
 		System.in.read();
 	}
