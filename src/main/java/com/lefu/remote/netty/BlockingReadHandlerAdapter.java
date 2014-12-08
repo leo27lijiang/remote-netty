@@ -34,7 +34,7 @@ public abstract class BlockingReadHandlerAdapter extends ChannelInboundHandlerAd
 		}
 		if (channelHandlerFactory.isBlockingRead()) {
 			Attribute<BlockingRead> r = ctx.channel().attr(BlockingRead.CHANNEL_BLOCKING_READ_KEY);
-			r.set(new DefaultBlockingRead(channelHandlerFactory.getTimeout()));
+			r.set(new DefaultBlockingRead(ctx, channelHandlerFactory.getTimeout()));
 			log.warn("Blocking read is enabled, do not use it in server handler.");
 		}
 	}

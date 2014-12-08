@@ -1,8 +1,9 @@
 package com.lefu.remote.netty.blocking;
 
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
+
 import java.net.SocketTimeoutException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -13,29 +14,20 @@ import java.util.concurrent.TimeUnit;
  */
 public class DefaultBlockingRead implements BlockingRead {
 	private final LinkedBlockingQueue<Object> blockingQueue = new LinkedBlockingQueue<Object>();
+	private ChannelHandlerContext channelHandlerContext;
 	private int timeout = Integer.MAX_VALUE;
 	
 	public DefaultBlockingRead() {
 		
 	}
 	
-	public DefaultBlockingRead(int timeout) {
+	public DefaultBlockingRead(ChannelHandlerContext ctx, int timeout) {
+		this.channelHandlerContext = ctx;
 		this.timeout = timeout;
 	}
 	
 	@Override
-	public List<Object> read() throws SocketTimeoutException {
-		List<Object> l = new ArrayList<Object>();
-		if (blockingQueue.size() > 0) {
-			int size = blockingQueue.size();
-			for (int i = 0; i < size; i++) {
-				Object obj = blockingQueue.poll();
-				if (obj != null) {
-					l.add(obj);
-				}
-			}
-			return l;
-		}
+	public Object read() throws SocketTimeoutException {
 		Object obj = null;
 		try {
 			obj = blockingQueue.poll(timeout, TimeUnit.MILLISECONDS);
@@ -43,10 +35,10 @@ public class DefaultBlockingRead implements BlockingRead {
 			e.printStackTrace();
 		}
 		if (obj == null) {
+			channelHandlerContext.close().addListener(ChannelFutureListener.CLOSE);
 			throw new SocketTimeoutException();
 		}
-		l.add(obj);
-		return l;
+		return obj;
 	}
 	
 	@Override
@@ -60,6 +52,10 @@ public class DefaultBlockingRead implements BlockingRead {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+	}
+
+	public void setChannelHandlerContext(ChannelHandlerContext channelHandlerContext) {
+		this.channelHandlerContext = channelHandlerContext;
 	}
 
 	public void setTimeout(int timeout) {
