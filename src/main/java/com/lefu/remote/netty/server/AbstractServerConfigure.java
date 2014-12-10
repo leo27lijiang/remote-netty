@@ -75,7 +75,7 @@ public abstract class AbstractServerConfigure implements NettyServer {
 	}
 	
 	@Override
-	public void bind(int... ports) throws Exception {
+	public Map<Integer, Channel> bind(int... ports) throws Exception {
 		if (ports == null) {
 			throw new NullPointerException();
 		}
@@ -87,6 +87,7 @@ public abstract class AbstractServerConfigure implements NettyServer {
 		}
 		log.info(String.format("Netty server started, listen on %1$s with properties -> [BossGroupSize=%2$d,WorkGroupSize=%3$d]", 
 				Arrays.toString(ports), bossGroup.executorCount(), workGroup.executorCount()));
+		return serverChannels;
 	}
 	
 	@Override
