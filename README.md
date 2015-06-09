@@ -12,10 +12,14 @@ remote-netty是基于Netty4的一个简便网络框架的封装，主要提供�
 
 # Client用法
 
-参考 
+参考测试用例：
 
 com.lefu.remote.netty.test.client.IOClientTest
 
 com.lefu.remote.netty.test.client.IOClientBlockTest
 
 com.lefu.remote.netty.test.client.PooledClientTest
+
+# wiki
+
+https://github.com/leo27lijiang/remote-netty/wiki
