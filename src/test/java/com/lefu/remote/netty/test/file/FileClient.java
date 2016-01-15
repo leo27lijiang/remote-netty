@@ -35,56 +35,58 @@ public class FileClient {
 	}
 	
 	public Channel getChannel() throws Exception {
-		return connector.connect("192.168.14.31", 9999);
+		return connector.connect("192.168.14.9", 9999);
 	}
 	
 	/**
 	 * 文件传输协议头
-	 * <pre>8(FileLength) + N(Stream) </pre>
+	 * <pre>
+	 * HeaderLen  HeaderContent    StreamLen    Stream        SHA
+	 * 4(int)   +   N(byte[])   +   8(long)  +  M(byte[])  +  40(String) 
+	 * </pre>
 	 * @param path
+	 * @param param
 	 * @param channel
 	 */
-	public void sendFile(String path, Channel channel) {
+	public void sendFile(String path, Object param, Channel channel) {
 		File f = new File(path);
 		System.out.println("File length: " + f.length());
 		InputStream in = null;
 		MessageDigest digest = null;
 		try {
+			byte[] header = SerializableUtil.object2Byte(param);
 			digest = MessageDigest.getInstance("SHA");
 			in = new DigestInputStream(new BufferedInputStream(new FileInputStream(f), 10240), digest);
 			byte[] temp = new byte[10240];
 			int readed = 0;
-			boolean isFirst = true;
+			int headerMetaLen = 4 + header.length + 8;// 4(int)   +   N(byte[])   +   8(long)
+			ByteBuffer byteBuffer = ByteBuffer.allocate(headerMetaLen); 
+			byteBuffer.putInt(header.length);// 4
+			byteBuffer.put(header);// N
+			byteBuffer.putLong(f.length());// 8
+			byteBuffer.flip();
+			channel.writeAndFlush(new ByteBean(0, headerMetaLen, byteBuffer.array())).await();// Send header meta data first
 			while (true) {
 				readed = in.read(temp);
 				if (readed == -1) {
 					break;
 				}
 				ByteBean byteBean = new ByteBean();
-				if (isFirst) {
-					isFirst = false;
-					ByteBuffer byteBuffer = ByteBuffer.allocate(8 + readed);
-					byteBuffer.putLong(f.length());
-					byteBuffer.put(temp, 0, readed);
-					byteBuffer.flip();
-					byteBean.setContent(byteBuffer.array());
-					byteBean.setPosition(0);
-					byteBean.setLength(byteBuffer.capacity());
-				} else {
-					byteBean.setContent(temp);
-					byteBean.setPosition(0);
-					byteBean.setLength(readed);
-				}
+				byteBean.setContent(temp);
+				byteBean.setPosition(0);
+				byteBean.setLength(readed);
 				ChannelFuture cf = channel.writeAndFlush(byteBean);
 				cf.await();
 			}
+			String sha = HexUtil.bytesToHexString(digest.digest());
+			channel.writeAndFlush(new ByteBean(0, sha.length(), sha.getBytes()));
+			System.out.println("Client SHA: " + sha);
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
 			if (in != null) {
 				try {
 					in.close();
-					System.out.println(HexUtil.bytesToHexString(digest.digest()));
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -99,7 +101,7 @@ public class FileClient {
 	public static void main(String[] args) throws Exception {
 		FileClient client = new FileClient();
 		Channel channel = client.getChannel();
-		client.sendFile("/home/leo/Downloads/VMware-Workstation-Full-10.0.3-1895310.x86_64.bundle", channel);
+		client.sendFile("/home/leo/Downloads/bootstrap-3.3.2-dist.zip", new Param("k","v"), channel);
 //		client.sendFile("/home/leo/Downloads/apache-tomcat-8.0.14.tar.gz", channel);
 //		client.sendFile("/home/leo/Downloads/mybatis-spring-1.0.1-reference.pdf", channel);
 		try {

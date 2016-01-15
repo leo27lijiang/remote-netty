@@ -4,6 +4,17 @@ public class ByteBean {
 	private byte[] content;
 	private int position;
 	private int length;
+	
+	public ByteBean() {
+		
+	}
+	
+	public ByteBean(int position, int length, byte[] content) {
+		this.position = position;
+		this.length = length;
+		this.content = content;
+	}
+	
 	public byte[] getContent() {
 		return content;
 	}

@@ -40,6 +40,20 @@ public class FileServer {
 		}
 	}
 	
+	public static boolean prefixedDataAvailable(ByteBuf in) {
+		if (in.readableBytes() < 4) {
+			return false;
+		}
+		in.markReaderIndex();
+		int length = in.readInt();
+		if (in.readableBytes() >= length) {
+			in.resetReaderIndex();
+			return true;
+		}
+		in.resetReaderIndex();
+		return false;
+	}
+	
 	public static void main(String[] args) {
 		new FileServer();
 	}
@@ -77,11 +91,14 @@ public class FileServer {
 						attr.set(rb);
 					}
 					if (!rb.isStarted()) {
-						if (in.readableBytes() < 8) {
+						if (!prefixedDataAvailable(in)) {
 							return;
 						}
+						int headerLen = in.readInt();
+						byte[] header = new byte[headerLen];
+						in.readBytes(header);
 						long size = in.readLong();
-						System.out.println("File size " + size);
+						System.out.println("File length: " + size + " | Param: " + SerializableUtil.byte2Object(header));
 						rb.setTotal(size);
 						rb.setStarted(true);
 						File temp = File.createTempFile(format.format(new Date()), ".file");
@@ -111,8 +128,11 @@ public class FileServer {
 						stream.close();
 						rb.setStarted(false);
 						rb.setOffset(0l);
+						byte[] sha = new byte[40];
+						in.readBytes(sha); // read last SHA
+						System.out.println("Client SHA: " + new String(sha));
+						System.out.println("Server SHA: " + HexUtil.bytesToHexString(rb.getDigest().digest()));
 						out.add(rb.getFile());
-						System.out.println(HexUtil.bytesToHexString(rb.getDigest().digest()));
 					}
 				}
 				
@@ -130,11 +150,11 @@ public class FileServer {
 				 
 				 @Override
 				 public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-//					 Attribute<RecordBean> attr = ctx.attr(KEY);
-//					 if (attr.get().getOut() != null) {
-//						 attr.get().getOut().close();
-//						 System.out.println("OutputStream closed.");
-//					 }
+					 Attribute<RecordBean> attr = ctx.channel().attr(KEY);
+					 if (attr.get().getOut() != null) {// Clean resource
+						 attr.get().getOut().close();
+						 System.out.println("OutputStream closed.");
+					 }
 				 }
 				 
 				 @Override
