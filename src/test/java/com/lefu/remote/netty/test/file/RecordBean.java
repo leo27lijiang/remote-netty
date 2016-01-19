@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 
 public class RecordBean {
 	private volatile boolean started = false;
+	private volatile boolean streamFinished = false;
 	private volatile long offset = 0l;
 	private long total = 0l;
 	private OutputStream out;
@@ -16,6 +17,12 @@ public class RecordBean {
 	}
 	public void setStarted(boolean started) {
 		this.started = started;
+	}
+	public boolean isStreamFinished() {
+		return streamFinished;
+	}
+	public void setStreamFinished(boolean streamFinished) {
+		this.streamFinished = streamFinished;
 	}
 	public long getOffset() {
 		return offset;

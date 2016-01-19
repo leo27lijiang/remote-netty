@@ -119,15 +119,24 @@ public class FileServer {
 					if (readSize > temp.length) { // Maybe readSize more than temp's capacity
 						readSize = temp.length;
 					}
-					in.readBytes(temp, 0, readSize);
-					stream.write(temp, 0, readSize);
-					long offset = rb.getOffset();
-					offset += readSize;
-					rb.setOffset(offset);
-					if (offset >= rb.getTotal()) {
-						stream.close();
+					if (!rb.isStreamFinished() && readSize > 0) {// Here should be 0 when read finished
+						in.readBytes(temp, 0, readSize);
+						stream.write(temp, 0, readSize);
+						long offset = rb.getOffset();
+						offset += readSize;
+						rb.setOffset(offset);
+						if (offset >= rb.getTotal()) {
+							rb.setStreamFinished(true);
+							stream.close();
+							rb.setOffset(0l);
+						}
+					}
+					if (rb.isStreamFinished() && rb.isStarted()) {
+						if (in.readableBytes() < 40) {
+							return;
+						}
 						rb.setStarted(false);
-						rb.setOffset(0l);
+						rb.setStreamFinished(false);
 						byte[] sha = new byte[40];
 						in.readBytes(sha); // read last SHA
 						System.out.println("Client SHA: " + new String(sha));

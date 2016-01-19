@@ -101,9 +101,9 @@ public class FileClient {
 	public static void main(String[] args) throws Exception {
 		FileClient client = new FileClient();
 		Channel channel = client.getChannel();
-		client.sendFile("/home/leo/Downloads/bootstrap-3.3.2-dist.zip", new Param("k","v"), channel);
-//		client.sendFile("/home/leo/Downloads/apache-tomcat-8.0.14.tar.gz", channel);
-//		client.sendFile("/home/leo/Downloads/mybatis-spring-1.0.1-reference.pdf", channel);
+		client.sendFile("/home/leo/Downloads/bootstrap-3.3.2-dist.zip", new Param("1","bootstrap-3.3.2-dist.zip"), channel);
+		client.sendFile("/home/leo/Downloads/apache-tomcat-8.0.14.tar.gz", new Param("2","apache-tomcat-8.0.14.tar.gz"), channel);
+		client.sendFile("/home/leo/Downloads/mybatis-spring-1.0.1-reference.pdf", new Param("3","mybatis-spring-1.0.1-reference.pdf"), channel);
 		try {
 			System.in.read();
 		} catch (IOException e) {
