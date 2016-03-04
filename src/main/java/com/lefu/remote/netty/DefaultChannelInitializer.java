@@ -13,10 +13,10 @@ import io.netty.channel.socket.SocketChannel;
  */
 public class DefaultChannelInitializer extends
 		AbstractChannelInitializer {
-	private ChannelHandlerFactory handlerFactory;
-	private ChannelInboundHandler ioHandler;
-	private ChannelOutboundHandler encodeHandler;
-	private boolean useSingleton = true;
+	protected ChannelHandlerFactory handlerFactory;
+	protected ChannelInboundHandler ioHandler;
+	protected ChannelOutboundHandler encodeHandler;
+	protected boolean useSingleton = true;
 	
 	public DefaultChannelInitializer() {
 		

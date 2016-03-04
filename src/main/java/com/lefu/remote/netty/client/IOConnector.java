@@ -127,4 +127,40 @@ public class IOConnector extends AbstractClientConfigure {
 		this.optionsConfigure = optionsConfigure;
 	}
 
+	public ClientOptionsConfigure getOptionsConfigure() {
+		return optionsConfigure;
+	}
+
+	public ChannelHandlerFactory getHandlerFactory() {
+		return handlerFactory;
+	}
+
+	public boolean isUseSingleton() {
+		return useSingleton;
+	}
+
+	public boolean isEnableTimeoutHandler() {
+		return enableTimeoutHandler;
+	}
+
+	public boolean isEnableIdleHandler() {
+		return enableIdleHandler;
+	}
+
+	public int getTimeout() {
+		return timeout;
+	}
+
+	public int getReadIdleTime() {
+		return readIdleTime;
+	}
+
+	public int getWriteIdleTime() {
+		return writeIdleTime;
+	}
+
+	public int getBothIdleTime() {
+		return bothIdleTime;
+	}
+
 }

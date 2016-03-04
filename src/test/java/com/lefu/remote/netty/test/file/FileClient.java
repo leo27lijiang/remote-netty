@@ -8,6 +8,7 @@ import java.io.BufferedInputStream;
 import java.nio.ByteBuffer;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -17,6 +18,7 @@ import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOutboundHandler;
 import io.netty.handler.codec.MessageToByteEncoder;
+import io.netty.util.concurrent.GenericFutureListener;
 
 import com.lefu.remote.netty.ChannelHandlerFactoryAdapter;
 import com.lefu.remote.netty.client.IOConnector;
@@ -47,51 +49,23 @@ public class FileClient {
 	 * @param path
 	 * @param param
 	 * @param channel
+	 * @throws NoSuchAlgorithmException 
+	 * @throws IOException 
 	 */
-	public void sendFile(String path, Object param, Channel channel) {
-		File f = new File(path);
+	public void sendFile(String path, Object param, final Channel channel) throws NoSuchAlgorithmException, IOException {
+		final File f = new File(path);
 		System.out.println("File length: " + f.length());
-		InputStream in = null;
-		MessageDigest digest = null;
-		try {
-			byte[] header = SerializableUtil.object2Byte(param);
-			digest = MessageDigest.getInstance("SHA");
-			in = new DigestInputStream(new BufferedInputStream(new FileInputStream(f), 10240), digest);
-			byte[] temp = new byte[10240];
-			int readed = 0;
-			int headerMetaLen = 4 + header.length + 8;// 4(int)   +   N(byte[])   +   8(long)
-			ByteBuffer byteBuffer = ByteBuffer.allocate(headerMetaLen); 
-			byteBuffer.putInt(header.length);// 4
-			byteBuffer.put(header);// N
-			byteBuffer.putLong(f.length());// 8
-			byteBuffer.flip();
-			channel.writeAndFlush(new ByteBean(0, headerMetaLen, byteBuffer.array())).await();// Send header meta data first
-			while (true) {
-				readed = in.read(temp);
-				if (readed == -1) {
-					break;
-				}
-				ByteBean byteBean = new ByteBean();
-				byteBean.setContent(temp);
-				byteBean.setPosition(0);
-				byteBean.setLength(readed);
-				ChannelFuture cf = channel.writeAndFlush(byteBean);
-				cf.await();
-			}
-			String sha = HexUtil.bytesToHexString(digest.digest());
-			channel.writeAndFlush(new ByteBean(0, sha.length(), sha.getBytes()));
-			System.out.println("Client SHA: " + sha);
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			if (in != null) {
-				try {
-					in.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-		}
+		final MessageDigest digest = MessageDigest.getInstance("SHA");
+		final InputStream in = new DigestInputStream(new BufferedInputStream(new FileInputStream(f), 10240), digest);
+		final byte[] temp = new byte[10240];
+		byte[] header = SerializableUtil.object2Byte(param);
+		int headerMetaLen = 4 + header.length + 8;// 4(int)   +   N(byte[])   +   8(long)
+		ByteBuffer byteBuffer = ByteBuffer.allocate(headerMetaLen); 
+		byteBuffer.putInt(header.length);// 4
+		byteBuffer.put(header);// N
+		byteBuffer.putLong(f.length());// 8
+		byteBuffer.flip();
+		channel.writeAndFlush(new ByteBean(0, headerMetaLen, byteBuffer.array())).addListener(new ChunkedFileListener(channel, in, temp, digest));
 	}
 	
 	public void close() {
@@ -100,16 +74,48 @@ public class FileClient {
 	
 	public static void main(String[] args) throws Exception {
 		FileClient client = new FileClient();
-		Channel channel = client.getChannel();
+		final Channel channel = client.getChannel();
 		client.sendFile("/home/leo/Downloads/bootstrap-3.3.2-dist.zip", new Param("1","bootstrap-3.3.2-dist.zip"), channel);
-		client.sendFile("/home/leo/Downloads/apache-tomcat-8.0.14.tar.gz", new Param("2","apache-tomcat-8.0.14.tar.gz"), channel);
-		client.sendFile("/home/leo/Downloads/mybatis-spring-1.0.1-reference.pdf", new Param("3","mybatis-spring-1.0.1-reference.pdf"), channel);
+		//client.sendFile("/home/leo/Downloads/apache-tomcat-8.0.14.tar.gz", new Param("2","apache-tomcat-8.0.14.tar.gz"), channel);
+		//client.sendFile("/home/leo/Downloads/mybatis-spring-1.0.1-reference.pdf", new Param("3","mybatis-spring-1.0.1-reference.pdf"), channel);
 		try {
 			System.in.read();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		client.close();
+	}
+	
+	public class ChunkedFileListener implements GenericFutureListener<ChannelFuture> {
+		private final Channel channel;
+		private final InputStream in;
+		private final byte[] temp;
+		private final MessageDigest digest;
+		
+		public ChunkedFileListener(Channel channel, InputStream in, byte[] temp, MessageDigest digest) {
+			this.channel = channel;
+			this.in = in;
+			this.temp = temp;
+			this.digest = digest;
+		}
+		
+		@Override
+		public void operationComplete(ChannelFuture future) throws Exception {
+			int readed = in.read(temp);
+			if (readed == -1) {
+				String sha = HexUtil.bytesToHexString(digest.digest());
+				channel.writeAndFlush(new ByteBean(0, sha.length(), sha.getBytes()));
+				System.out.println("Client SHA: " + sha);
+				in.close();
+			} else {
+				ByteBean by = new ByteBean();
+				by.setContent(temp);
+				by.setLength(readed);
+				by.setPosition(0);
+				channel.writeAndFlush(by).addListener(new ChunkedFileListener(channel, in, temp, digest));
+			}
+		}
+		
 	}
 	
 	public class FileClientHandlerFactory extends ChannelHandlerFactoryAdapter {
